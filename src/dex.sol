@@ -1,24 +1,32 @@
 pragma solidity ^0.4.23;
 
-contract SafeMath {
-    function safeMul(uint a, uint b) internal pure returns (uint256 c) {
+
+library SafeMath {
+    function mul(uint256 a, uint256 b) internal pure returns (uint256 c) {
+        if (a == 0) {
+            return 0;
+        }
         c = a * b;
-        assert(a == 0 || c / a == b);
+        assert(c / a == b);
         return c;
     }
 
-    function safeSub(uint a, uint b) internal pure returns (uint256) {
+    function div(uint256 a, uint256 b) internal pure returns (uint256) {
+        return a / b;
+    }
+
+    function sub(uint256 a, uint256 b) internal pure returns (uint256) {
         assert(b <= a);
         return a - b;
     }
 
-    function safeAdd(uint a, uint b) internal pure returns (uint256 c) {
+    function add(uint256 a, uint256 b) internal pure returns (uint256 c) {
         c = a + b;
-        assert(c>=a && c>=b);
+        assert(c >= a);
         return c;
     }
-
 }
+
 
 contract Token {
     /// @return total amount of tokens
@@ -60,7 +68,7 @@ contract Token {
 }
 
 contract StandardToken is Token {
-
+    using SafeMath for uint256;
     function transfer(address _to, uint _value) public returns (bool) {
         //Default assumes totalSupply can't be over max (2^256 - 1).
         if (balances[msg.sender] >= _value && balances[_to] + _value >= balances[_to]) {
@@ -101,21 +109,21 @@ contract StandardToken is Token {
 
 }
 
-contract ReserveToken is StandardToken, SafeMath {
+contract ReserveToken is StandardToken {
     address public minter;
     constructor() public {
         minter = msg.sender;
     }
     function create(address account, uint amount) public{
         assert(msg.sender != minter);
-        balances[account] = safeAdd(balances[account], amount);
-        totalSupply = safeAdd(totalSupply, amount);
+        balances[account] = balances[account].add(amount);
+        totalSupply = totalSupply.add( amount);
     }
     function destroy(address account, uint amount) public{
         assert(msg.sender != minter);
         assert(balances[account] < amount);
-        balances[account] = safeSub(balances[account], amount);
-        totalSupply = safeSub(totalSupply, amount);
+        balances[account] = balances[account].sub(amount);
+        totalSupply = totalSupply.sub(amount);
     }
 }
 
@@ -139,7 +147,9 @@ contract AccountLevelsTest is AccountLevels {
     }
 }
 
-contract EtherDelta is SafeMath {
+contract EtherDelta  {
+    using SafeMath for uint256;
+
     address public admin; //the admin address
     address public feeAccount; //the account that will receive fees
     address public accountLevelsAddr; //the address of the AccountLevels contract
@@ -165,68 +175,68 @@ contract EtherDelta is SafeMath {
         feeRebate = feeRebate_;
     }
 
-    function() public{
-        assert(false);
+    function () payable external {
+        tokens[address(0)][msg.sender] = tokens[address(0)][msg.sender].add( msg.value);
+        emit Deposit(address(0), msg.sender, msg.value, tokens[address(0)][msg.sender]);
     }
 
     function changeAdmin(address admin_) public{
-        assert(msg.sender != admin);
+        assert(msg.sender == admin);
         admin = admin_;
     }
 
     function changeAccountLevelsAddr(address accountLevelsAddr_) public {
-        assert(msg.sender != admin);
+        assert(msg.sender == admin);
         accountLevelsAddr = accountLevelsAddr_;
     }
 
     function changeFeeAccount(address feeAccount_) public{
-        assert (msg.sender != admin);
+        assert (msg.sender == admin);
         feeAccount = feeAccount_;
     }
 
     function changeFeeMake(uint feeMake_) public{
-        assert (msg.sender != admin) ;
-        assert (feeMake_ > feeMake) ;
+        assert (msg.sender == admin) ;
+        assert (feeMake_ <= feeMake) ;
         feeMake = feeMake_;
     }
 
     function changeFeeTake(uint feeTake_) public {
-        assert (msg.sender != admin);
-        assert (feeTake_ > feeTake || feeTake_ < feeRebate);
+        assert (msg.sender == admin);
+        assert (feeTake_ <= feeTake && feeTake_ >= feeRebate);
         feeTake = feeTake_;
     }
 
     function changeFeeRebate(uint feeRebate_) public{
-        assert (msg.sender != admin);
-        assert (feeRebate_ < feeRebate || feeRebate_ > feeTake);
+        assert (msg.sender == admin);
+        assert (feeRebate_ >= feeRebate && feeRebate_ <= feeTake);
         feeRebate = feeRebate_;
     }
 
-    function deposit() payable public{
-        tokens[0][msg.sender] = safeAdd(tokens[0][msg.sender], msg.value);
-        emit Deposit(0, msg.sender, msg.value, tokens[0][msg.sender]);
+    function deposit()  payable external {
+        tokens[address(0)][msg.sender] = tokens[address(0)][msg.sender].add( msg.value);
+        emit Deposit(address(0), msg.sender, msg.value, tokens[address(0)][msg.sender]);
     }
 
-    function withdraw(uint amount) public {
-        assert (tokens[0][msg.sender] < amount);
-        tokens[0][msg.sender] = safeSub(tokens[0][msg.sender], amount);
-        assert (!msg.sender.call.value(amount)());
-        emit Withdraw(0, msg.sender, amount, tokens[0][msg.sender]);
+    function withdraw(uint256 amount) public {
+        require (tokens[address(0)][msg.sender] >= amount);
+        tokens[address[0]][msg.sender] = tokens[address(0)][msg.sender].sub(amount);
+        require (msg.sender.call.value(amount)());
+        emit Withdraw(address(0), msg.sender, amount, tokens[address(0)][msg.sender]);
     }
 
-    function depositToken(address token, uint amount) public{
-        //remember to call Token(address).approve(this, amount) or this contract will not be able to do the transfer on your behalf.
-        assert (token==0);
-        assert (!Token(token).transferFrom(msg.sender, this, amount));
-        tokens[token][msg.sender] = safeAdd(tokens[token][msg.sender], amount);
+    function depositToken(address token, uint256 amount) public{
+        require (token!=address(0));
+        require (Token(token).transferFrom(msg.sender, this, amount));
+        tokens[token][msg.sender] = tokens[token][msg.sender].add(amount);
         emit Deposit(token, msg.sender, amount, tokens[token][msg.sender]);
     }
 
-    function withdrawToken(address token, uint amount) public{
-        assert (token==0);
-        assert (tokens[token][msg.sender] < amount);
-        tokens[token][msg.sender] = safeSub(tokens[token][msg.sender], amount);
-        assert (!Token(token).transfer(msg.sender, amount));
+    function withdrawToken(address token, uint256 amount) public{
+        require (token!=address(0x0));
+        require (tokens[token][msg.sender] >= amount);
+        tokens[token][msg.sender] = tokens[token][msg.sender].sub(amount);
+        require (Token(token).transfer(msg.sender, amount));
         emit Withdraw(token, msg.sender, amount, tokens[token][msg.sender]);
     }
 
@@ -243,30 +253,30 @@ contract EtherDelta is SafeMath {
     function trade(address tokenGet, uint amountGet, address tokenGive, uint amountGive, uint expires, uint nonce, address user, uint8 v, bytes32 r, bytes32 s, uint amount) public {
         //amount is in amountGet terms
         bytes32 hash = sha256(abi.encodePacked(this, tokenGet, amountGet, tokenGive, amountGive, expires, nonce));
-        assert (!(
-        (orders[user][hash] || ecrecover(keccak256( abi.encodePacked("\x19Ethereum Signed Message:\n32", hash) ),v,r,s) == user) &&
-        block.number <= expires &&
-        safeAdd(orderFills[user][hash], amount) <= amountGet
+        assert ((
+        (orders[user][hash] && ecrecover(keccak256( abi.encodePacked("\x19Ethereum Signed Message:\n32", hash) ),v,r,s) == user) ||
+        block.number > expires ||
+        orderFills[user][hash].add(amount) > amountGet
         ));
         tradeBalances(tokenGet, amountGet, tokenGive, amountGive, user, amount);
-        orderFills[user][hash] = safeAdd(orderFills[user][hash], amount);
+        orderFills[user][hash] = orderFills[user][hash].add(amount);
         emit Trade(tokenGet, amount, tokenGive, amountGive * amount / amountGet, user, msg.sender);
     }
 
     function tradeBalances(address tokenGet, uint amountGet, address tokenGive, uint amountGive, address user, uint amount) private {
-        uint feeMakeXfer = safeMul(amount, feeMake) / (1 ether);
-        uint feeTakeXfer = safeMul(amount, feeTake) / (1 ether);
+        uint feeMakeXfer = amount.mul(feeMake) / (1 ether);
+        uint feeTakeXfer = amount.mul( feeTake) / (1 ether);
         uint feeRebateXfer = 0;
         if (accountLevelsAddr != 0x0) {
             uint accountLevel = AccountLevels(accountLevelsAddr).accountLevel(user);
-            if (accountLevel==1) feeRebateXfer = safeMul(amount, feeRebate) / (1 ether);
+            if (accountLevel==1) feeRebateXfer = amount.mul( feeRebate) / (1 ether);
             if (accountLevel==2) feeRebateXfer = feeTakeXfer;
         }
-        tokens[tokenGet][msg.sender] = safeSub(tokens[tokenGet][msg.sender], safeAdd(amount, feeTakeXfer));
-        tokens[tokenGet][user] = safeAdd(tokens[tokenGet][user], safeSub(safeAdd(amount, feeRebateXfer), feeMakeXfer));
-        tokens[tokenGet][feeAccount] = safeAdd(tokens[tokenGet][feeAccount], safeSub(safeAdd(feeMakeXfer, feeTakeXfer), feeRebateXfer));
-        tokens[tokenGive][user] = safeSub(tokens[tokenGive][user], safeMul(amountGive, amount) / amountGet);
-        tokens[tokenGive][msg.sender] = safeAdd(tokens[tokenGive][msg.sender], safeMul(amountGive, amount) / amountGet);
+        tokens[tokenGet][msg.sender] = tokens[tokenGet][msg.sender].sub( amount.add(feeTakeXfer));
+        tokens[tokenGet][user] = tokens[tokenGet][user].add( amount.add(feeRebateXfer).sub( feeMakeXfer));
+        tokens[tokenGet][feeAccount] = tokens[tokenGet][feeAccount].add(feeMakeXfer.add(feeTakeXfer).sub(feeRebateXfer));
+        tokens[tokenGive][user] = tokens[tokenGive][user].sub(amountGive.mul( amount) / amountGet);
+        tokens[tokenGive][msg.sender] = tokens[tokenGive][msg.sender].add( amountGive.mul( amount) / amountGet);
     }
 
     function testTrade(address tokenGet, uint amountGet, address tokenGive, uint amountGive, uint expires, uint nonce, address user, uint8 v, bytes32 r, bytes32 s, uint amount, address sender) public constant returns(bool) {
@@ -283,8 +293,8 @@ contract EtherDelta is SafeMath {
         (orders[user][hash] || ecrecover(keccak256(abi.encodePacked("\x19Ethereum Signed Message:\n32", hash)),v,r,s) == user) &&
         block.number <= expires
         )) return 0;
-        uint available1 = safeSub(amountGet, orderFills[user][hash]);
-        uint available2 = safeMul(tokens[tokenGive][user], amountGet) / amountGive;
+        uint available1 = amountGet.sub( orderFills[user][hash]);
+        uint available2 = amountGet.mul(tokens[tokenGive][user]) / amountGive;
         if (available1<available2) return available1;
         return available2;
     }
@@ -296,7 +306,7 @@ contract EtherDelta is SafeMath {
 
     function cancelOrder(address tokenGet, uint amountGet, address tokenGive, uint amountGive, uint expires, uint nonce, uint8 v, bytes32 r, bytes32 s) public {
         bytes32 hash = sha256(abi.encodePacked(this, tokenGet, amountGet, tokenGive, amountGive, expires, nonce));
-        assert (!(orders[msg.sender][hash] || ecrecover(keccak256(abi.encodePacked("\x19Ethereum Signed Message:\n32", hash)),v,r,s) == msg.sender));
+        assert ((orders[msg.sender][hash] && ecrecover(keccak256(abi.encodePacked("\x19Ethereum Signed Message:\n32", hash)),v,r,s) != msg.sender));
         orderFills[msg.sender][hash] = amountGet;
         emit Cancel(tokenGet, amountGet, tokenGive, amountGive, expires, nonce, msg.sender, v, r, s);
     }
