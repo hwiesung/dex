@@ -73,9 +73,11 @@ contract EtherDex  {
     uint public feeTake; //percentage times (1 ether)
     uint public feeRebate; //percentage times (1 ether)
     mapping (address => mapping (address => uint)) public tokens; //mapping of token addresses to mapping of account balances (token=0 means Ether)
-    mapping (address => mapping (bytes32 => bool)) public orders; //mapping of user accounts to mapping of order hashes to booleans (true = submitted by user, equivalent to offchain signature)
+    mapping (address => mapping (bytes32 => uint)) public orders; //mapping of user accounts to mapping of order hashes to booleans (true = submitted by user, equivalent to offchain signature)
     mapping (address => mapping (bytes32 => uint)) public orderFills; //mapping of user accounts to mapping of order hashes to uints (amount of order that has been filled)
+    mapping (address => mapping (bytes32 => uint)) public orderPrices;
 
+    event SellOrder(bytes32 hash, address tokenGive, uint amountGive, uint price, uint expire, uint nonce, address user);
     event Order(address tokenGet, uint amountGet, address tokenGive, uint amountGive, uint expires, uint nonce, address user);
     event Cancel(address tokenGet, uint amountGet, address tokenGive, uint amountGive, uint expires, uint nonce, address user, uint8 v, bytes32 r, bytes32 s);
     event Trade(address tokenGet, uint amountGet, address tokenGive, uint amountGive, address get, address give);
@@ -155,20 +157,22 @@ contract EtherDex  {
         return tokens[token][user];
     }
 
-    function order(address tokenGet, uint amountGet, address tokenGive, uint amountGive, uint expires, uint nonce) public {
-        bytes32 hash = sha256(abi.encodePacked(this, tokenGet, amountGet, tokenGive, amountGive, expires, nonce));
-        orders[msg.sender][hash] = true;
-        emit Order(tokenGet, amountGet, tokenGive, amountGive, expires, nonce, msg.sender);
+    function sellOrder(address tokenGive, uint amountGive, uint price, uint expire, uint nonce) public {
+        bytes32 hash = sha256(abi.encodePacked(this, tokenGive, amountGive, price, expire, nonce));
+        orders[msg.sender][hash] = amountGive;
+        orderPrices[msg.sender][hash] = price;
+        emit SellOrder(hash, tokenGive, amountGive, price, expire, nonce, msg.sender);
     }
+
 
     function trade(address tokenGet, uint amountGet, address tokenGive, uint amountGive, uint expires, uint nonce, address user, uint8 v, bytes32 r, bytes32 s, uint amount) public {
         //amount is in amountGet terms
         bytes32 hash = sha256(abi.encodePacked(this, tokenGet, amountGet, tokenGive, amountGive, expires, nonce));
         assert ((
-        (orders[user][hash] && ecrecover(keccak256( abi.encodePacked("\x19Ethereum Signed Message:\n32", hash) ),v,r,s) == user) ||
-        block.number > expires ||
-        orderFills[user][hash].add(amount) > amountGet
-        ));
+            (orders[user][hash]>0 && ecrecover(keccak256( abi.encodePacked("\x19Ethereum Signed Message:\n32", hash) ),v,r,s) == user) ||
+            block.number > expires ||
+            orderFills[user][hash].add(amount) > amountGet
+            ));
         tradeBalances(tokenGet, amountGet, tokenGive, amountGive, user, amount);
         orderFills[user][hash] = orderFills[user][hash].add(amount);
         emit Trade(tokenGet, amount, tokenGive, amountGive * amount / amountGet, user, msg.sender);
@@ -197,7 +201,7 @@ contract EtherDex  {
     function availableVolume(address tokenGet, uint amountGet, address tokenGive, uint amountGive, uint expires, uint nonce, address user, uint8 v, bytes32 r, bytes32 s) internal constant returns(uint) {
         bytes32 hash = sha256(abi.encodePacked(this, tokenGet, amountGet, tokenGive, amountGive, expires, nonce));
         if (!(
-        (orders[user][hash] || ecrecover(keccak256(abi.encodePacked("\x19Ethereum Signed Message:\n32", hash)),v,r,s) == user) &&
+        ( ecrecover(keccak256(abi.encodePacked("\x19Ethereum Signed Message:\n32", hash)),v,r,s) == user) &&
         block.number <= expires
         )) return 0;
         uint available1 = amountGet.sub( orderFills[user][hash]);
@@ -213,7 +217,7 @@ contract EtherDex  {
 
     function cancelOrder(address tokenGet, uint amountGet, address tokenGive, uint amountGive, uint expires, uint nonce, uint8 v, bytes32 r, bytes32 s) public {
         bytes32 hash = sha256(abi.encodePacked(this, tokenGet, amountGet, tokenGive, amountGive, expires, nonce));
-        assert ((orders[msg.sender][hash] && ecrecover(keccak256(abi.encodePacked("\x19Ethereum Signed Message:\n32", hash)),v,r,s) != msg.sender));
+        assert ((orders[msg.sender][hash] > 0 && ecrecover(keccak256(abi.encodePacked("\x19Ethereum Signed Message:\n32", hash)),v,r,s) != msg.sender));
         orderFills[msg.sender][hash] = amountGet;
         emit Cancel(tokenGet, amountGet, tokenGive, amountGive, expires, nonce, msg.sender, v, r, s);
     }
