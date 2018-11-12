@@ -28,131 +28,47 @@ library SafeMath {
 }
 
 
-contract Token {
+interface Token {
     /// @return total amount of tokens
-    function totalSupply()  public view returns (uint256);
+    function totalSupply()  external;
 
     /// @param _owner The address from which the balance will be retrieved
     /// @return The balance
-    function balanceOf(address _owner) public view returns (uint256);
+    function balanceOf(address _owner) external returns (uint256);
 
     /// @notice send `_value` token to `_to` from `msg.sender`
     /// @param _to The address of the recipient
     /// @param _value The amount of token to be transferred
     /// @return Whether the transfer was successful or not
-    function transfer(address _to, uint256 _value) public returns (bool);
+    function transfer(address _to, uint256 _value) external returns (bool);
 
     /// @notice send `_value` token to `_to` from `_from` on the condition it is approved by `_from`
     /// @param _from The address of the sender
     /// @param _to The address of the recipient
     /// @param _value The amount of token to be transferred
     /// @return Whether the transfer was successful or not
-    function transferFrom(address _from, address _to, uint256 _value) public returns (bool);
+    function transferFrom(address _from, address _to, uint256 _value) external returns (bool);
 
     /// @notice `msg.sender` approves `_addr` to spend `_value` tokens
     /// @param _spender The address of the account able to transfer the tokens
     /// @param _value The amount of wei to be approved for transfer
     /// @return Whether the approval was successful or not
-    function approve(address _spender, uint256 _value) public returns (bool);
+    function approve(address _spender, uint256 _value) external returns (bool);
 
     /// @param _owner The address of the account owning tokens
     /// @param _spender The address of the account able to transfer the tokens
     /// @return Amount of remaining tokens allowed to spent
-    function allowance(address _owner, address _spender) public view returns (uint256);
-
-    event Transfer(address indexed _from, address indexed _to, uint _value);
-    event Approval(address indexed _owner, address indexed _spender, uint _value);
-
-    uint public decimals;
-    string public name;
-}
-
-contract StandardToken is Token {
-    using SafeMath for uint256;
-    function transfer(address _to, uint _value) public returns (bool) {
-        //Default assumes totalSupply can't be over max (2^256 - 1).
-        if (balances[msg.sender] >= _value && balances[_to] + _value >= balances[_to]) {
-            balances[msg.sender] -= _value;
-            balances[_to] += _value;
-            emit Transfer(msg.sender, _to, _value);
-            return true;
-        } else { return false; }
-    }
-
-    function transferFrom(address _from, address _to, uint _value) public returns (bool) {
-        if (balances[_from] >= _value && allowed[_from][msg.sender] >= _value && balances[_to] + _value >= balances[_to]) {
-            balances[_to] += _value;
-            balances[_from] -= _value;
-            allowed[_from][msg.sender] -= _value;
-            emit Transfer(_from, _to, _value);
-            return true;
-        } else { return false; }
-    }
-
-    function balanceOf(address _owner) public  constant returns (uint) {
-        return balances[_owner];
-    }
-
-    function approve(address _spender, uint _value) public returns (bool) {
-        allowed[msg.sender][_spender] = _value;
-        emit Approval(msg.sender, _spender, _value);
-        return true;
-    }
-
-    function allowance(address _owner, address _spender)public  constant returns (uint) {
-        return allowed[_owner][_spender];
-    }
-
-    mapping (address => uint256) balances;
-    mapping (address => mapping (address => uint256)) allowed;
-    uint256 public totalSupply;
+    function allowance(address _owner, address _spender) external;
 
 }
 
-contract ReserveToken is StandardToken {
-    address public minter;
-    constructor() public {
-        minter = msg.sender;
-    }
-    function create(address account, uint amount) public{
-        assert(msg.sender != minter);
-        balances[account] = balances[account].add(amount);
-        totalSupply = totalSupply.add( amount);
-    }
-    function destroy(address account, uint amount) public{
-        assert(msg.sender != minter);
-        assert(balances[account] < amount);
-        balances[account] = balances[account].sub(amount);
-        totalSupply = totalSupply.sub(amount);
-    }
-}
 
-contract AccountLevels {
-    //given a user, returns an account level
-    //0 = regular user (pays take fee and make fee)
-    //1 = market maker silver (pays take fee, no make fee, gets rebate)
-    //2 = market maker gold (pays take fee, no make fee, gets entire counterparty's take fee as rebate)
-    function accountLevel(address user) public constant returns(uint256);
-}
 
-contract AccountLevelsTest is AccountLevels {
-    mapping (address => uint) public accountLevels;
-
-    function setAccountLevel(address user, uint level) public {
-        accountLevels[user] = level;
-    }
-
-    function accountLevel(address user) public constant returns(uint)  {
-        return accountLevels[user];
-    }
-}
-
-contract EtherDelta  {
+contract EtherDex  {
     using SafeMath for uint256;
 
     address public admin; //the admin address
     address public feeAccount; //the account that will receive fees
-    address public accountLevelsAddr; //the address of the AccountLevels contract
     uint public feeMake; //percentage times (1 ether)
     uint public feeTake; //percentage times (1 ether)
     uint public feeRebate; //percentage times (1 ether)
@@ -166,10 +82,9 @@ contract EtherDelta  {
     event Deposit(address token, address user, uint amount, uint balance);
     event Withdraw(address token, address user, uint amount, uint balance);
 
-    constructor(address admin_, address feeAccount_, address accountLevelsAddr_, uint feeMake_, uint feeTake_, uint feeRebate_) public {
+    constructor(address admin_, address feeAccount_, uint feeMake_, uint feeTake_, uint feeRebate_) public {
         admin = admin_;
         feeAccount = feeAccount_;
-        accountLevelsAddr = accountLevelsAddr_;
         feeMake = feeMake_;
         feeTake = feeTake_;
         feeRebate = feeRebate_;
@@ -183,11 +98,6 @@ contract EtherDelta  {
     function changeAdmin(address admin_) public{
         assert(msg.sender == admin);
         admin = admin_;
-    }
-
-    function changeAccountLevelsAddr(address accountLevelsAddr_) public {
-        assert(msg.sender == admin);
-        accountLevelsAddr = accountLevelsAddr_;
     }
 
     function changeFeeAccount(address feeAccount_) public{
@@ -220,14 +130,15 @@ contract EtherDelta  {
 
     function withdraw(uint256 amount) public {
         require (tokens[address(0)][msg.sender] >= amount);
-        tokens[address[0]][msg.sender] = tokens[address(0)][msg.sender].sub(amount);
+        tokens[address(0)][msg.sender] = tokens[address(0)][msg.sender].sub(amount);
         require (msg.sender.call.value(amount)());
         emit Withdraw(address(0), msg.sender, amount, tokens[address(0)][msg.sender]);
     }
 
     function depositToken(address token, uint256 amount) public{
         require (token!=address(0));
-        require (Token(token).transferFrom(msg.sender, this, amount));
+        require (Token(token).approve(this, amount) );
+        require (Token(token).transferFrom(msg.sender, this, amount) );
         tokens[token][msg.sender] = tokens[token][msg.sender].add(amount);
         emit Deposit(token, msg.sender, amount, tokens[token][msg.sender]);
     }
@@ -240,7 +151,7 @@ contract EtherDelta  {
         emit Withdraw(token, msg.sender, amount, tokens[token][msg.sender]);
     }
 
-    function balanceOf(address token, address user) public constant returns (uint256) {
+    function balanceOf(address token, address user) public view returns (uint256) {
         return tokens[token][user];
     }
 
@@ -267,11 +178,7 @@ contract EtherDelta  {
         uint feeMakeXfer = amount.mul(feeMake) / (1 ether);
         uint feeTakeXfer = amount.mul( feeTake) / (1 ether);
         uint feeRebateXfer = 0;
-        if (accountLevelsAddr != 0x0) {
-            uint accountLevel = AccountLevels(accountLevelsAddr).accountLevel(user);
-            if (accountLevel==1) feeRebateXfer = amount.mul( feeRebate) / (1 ether);
-            if (accountLevel==2) feeRebateXfer = feeTakeXfer;
-        }
+
         tokens[tokenGet][msg.sender] = tokens[tokenGet][msg.sender].sub( amount.add(feeTakeXfer));
         tokens[tokenGet][user] = tokens[tokenGet][user].add( amount.add(feeRebateXfer).sub( feeMakeXfer));
         tokens[tokenGet][feeAccount] = tokens[tokenGet][feeAccount].add(feeMakeXfer.add(feeTakeXfer).sub(feeRebateXfer));
