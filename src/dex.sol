@@ -74,7 +74,7 @@ contract TokenMarket  {
 
     mapping (bytes32 => bool) public asks;
 
-    event Ask(bytes32 hash, address token, uint amount, uint price, uint expire, uint nonce, address seller);
+    event Ask(bytes32 hash, address token, uint amount, uint price, uint total, uint expire, uint nonce, address seller);
     event Sold(bytes32 hash, address token, uint amount, uint price, address seller, address buyer);
     event Cancel(bytes32 hash, address token, uint amount, uint price, address seller);
 
@@ -141,14 +141,13 @@ contract TokenMarket  {
 
         asks[hash] = true;
 
-        emit Ask(hash, token, amount, price, expire, nonce, msg.sender);
+        emit Ask(hash, token, amount, price, total, expire, nonce, msg.sender);
     }
 
-    function buy(bytes32 targetHash, address targetToken, uint targetAmount, uint targetPrice, uint targetExpire,  uint targetNonce, address seller) payable external {
+    function buy(bytes32 targetHash, address targetToken, uint targetAmount, uint targetPrice, uint targetTotal, uint targetExpire,  uint targetNonce, address seller) payable external {
         bytes32 hash = sha256(abi.encodePacked(this, targetToken, targetAmount, targetPrice, targetExpire, targetNonce, seller));
-        uint256 total = targetPrice.mul( targetAmount ).div(1 ether);
         require( asks[hash] && targetHash == hash && block.number <= targetExpire );
-        require( total == msg.value );
+        require( targetTotal == msg.value );
         require( seller.call.value(msg.value)() );
         require( withdrawToken(msg.sender, targetToken, targetAmount) );
 
