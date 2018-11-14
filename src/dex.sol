@@ -74,12 +74,10 @@ contract TokenMarket  {
 
     mapping (bytes32 => bool) public asks;
 
-    event Ask(bytes32 hash, address token, uint amount, uint price, uint total, uint expire, uint nonce, address seller);
-    event Sold(bytes32 hash, address token, uint amount, uint price, address seller, address buyer);
-    event Cancel(bytes32 hash, address token, uint amount, uint price, address seller);
+    event Ask(bytes32 hash, address token, uint amount, uint price, uint total, uint expire, uint nonce, address indexed seller);
+    event Sold(bytes32 hash, address token, uint amount, uint price, address indexed seller, address indexed buyer);
+    event Cancel(bytes32 hash, address token, uint amount, uint price, address indexed seller);
 
-    event Deposit(address token, address user, uint amount);
-    event Withdraw(address token, address user, uint amount);
 
     constructor() public {
         admin = msg.sender;
@@ -119,8 +117,6 @@ contract TokenMarket  {
         require (token!=address(0));
         require (Token(token).transferFrom(user, this, amount) );
 
-        emit Deposit(token, user, amount);
-
         return true;
     }
 
@@ -128,7 +124,6 @@ contract TokenMarket  {
         require (token!=address(0x0));
         require (Token(token).transfer(user, amount));
 
-        emit Withdraw(token, user, amount);
         return true;
     }
 
