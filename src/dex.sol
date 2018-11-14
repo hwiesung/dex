@@ -64,62 +64,55 @@ interface Token {
 
 
 
-contract EtherDex  {
+contract TokenMarket  {
     using SafeMath for uint256;
 
-    address public admin; //the admin address
-    address public feeAccount; //the account that will receive fees
-    uint public feeMake; //percentage times (1 ether)
-    uint public feeTake; //percentage times (1 ether)
-    uint public feeRebate; //percentage times (1 ether)
+    address public admin;
+    address public feeAccount;
+    uint public makerFee; //for seller
+    uint public takerFee; //for buyer
 
     mapping (bytes32 => bool) public asks;
 
-    event Ask(bytes32 hash, address tokenGive, uint amountGive, uint price, uint expire, uint nonce, address seller);
-    event Sold(bytes32 hash, address tokenGive, uint amountGive, uint price, address seller, address buyer);
-    event Cancel(bytes32 hash, address tokenGive, uint amountGive, uint price, address seller, address buyer);
+    event Ask(bytes32 hash, address token, uint amount, uint price, uint expire, uint nonce, address seller);
+    event Sold(bytes32 hash, address token, uint amount, uint price, address seller, address buyer);
+    event Cancel(bytes32 hash, address token, uint amount, uint price, address seller);
 
     event Deposit(address token, address user, uint amount);
     event Withdraw(address token, address user, uint amount);
 
-    constructor(address admin_) public {
-        admin = admin_;
-        feeAccount = address(0);
-        feeMake = 0;
-        feeTake = 0;
-        feeRebate = 0;
+    constructor() public {
+        admin = msg.sender;
+        feeAccount = msg.sender;
+        makerFee = 0;
+        takerFee = 0;
     }
 
     function () payable external {
 
     }
 
-    function changeAdmin(address admin_) public{
-        assert(msg.sender == admin);
-        admin = admin_;
+    function changeAdmin(address _admin) public{
+        require(msg.sender == admin && _admin != admin);
+        admin = _admin;
     }
 
-    function changeFeeAccount(address feeAccount_) public{
-        assert (msg.sender == admin);
-        feeAccount = feeAccount_;
+    function changeFeeAccount(address _feeAccount) public{
+        require(msg.sender == admin && _feeAccount != feeAccount);
+        feeAccount = _feeAccount;
     }
 
-    function changeFeeMake(uint feeMake_) public{
-        assert (msg.sender == admin) ;
-        assert (feeMake_ <= feeMake) ;
-        feeMake = feeMake_;
+
+    function changeMakerFee(uint _makerFee) public{
+        require (msg.sender == admin) ;
+        require (_makerFee != makerFee) ;
+        makerFee = _makerFee;
     }
 
-    function changeFeeTake(uint feeTake_) public {
-        assert (msg.sender == admin);
-        assert (feeTake_ <= feeTake && feeTake_ >= feeRebate);
-        feeTake = feeTake_;
-    }
-
-    function changeFeeRebate(uint feeRebate_) public{
-        assert (msg.sender == admin);
-        assert (feeRebate_ >= feeRebate && feeRebate_ <= feeTake);
-        feeRebate = feeRebate_;
+    function changeTakerFee(uint _takerFee) public{
+        require (msg.sender == admin) ;
+        require (_takerFee != takerFee) ;
+        takerFee = _takerFee;
     }
 
     function depositToken(address user, address token, uint256 amount) private returns(bool){
@@ -140,8 +133,9 @@ contract EtherDex  {
     }
 
     function askToken(address token, uint amount, uint price, uint expire, uint nonce) external {
-        bytes32 hash = sha256(abi.encodePacked(this, token, amount, price, expire, nonce));
+        bytes32 hash = sha256(abi.encodePacked(this, token, amount, price, expire, nonce, msg.sender));
         uint256 total = price.mul( amount ).div(1 ether);
+        require( !asks[hash] );
         require( total >= (0.05 ether) && total < (10 ether) );
         require(depositToken(msg.sender, token, amount));
 
@@ -150,8 +144,8 @@ contract EtherDex  {
         emit Ask(hash, token, amount, price, expire, nonce, msg.sender);
     }
 
-    function buy(bytes32 targetHash, address targetToken, uint targetAmount, uint targetPrice, uint targetExpire,  uint targetNone, address seller) payable external {
-        bytes32 hash = sha256(abi.encodePacked(this, targetToken, targetAmount, targetPrice, targetExpire, targetNone));
+    function buy(bytes32 targetHash, address targetToken, uint targetAmount, uint targetPrice, uint targetExpire,  uint targetNonce, address seller) payable external {
+        bytes32 hash = sha256(abi.encodePacked(this, targetToken, targetAmount, targetPrice, targetExpire, targetNonce, seller));
         uint256 total = targetPrice.mul( targetAmount ).div(1 ether);
         require( asks[hash] && targetHash == hash && block.number <= targetExpire );
         require( total == msg.value );
@@ -166,9 +160,14 @@ contract EtherDex  {
 
     }
 
-    function cancelOrder(bytes32 targetHash, address targetToken, uint targetAmount, uint targetPrice, uint targetExpire,  uint targetNone) external {
-        emit Cancel(soldHash, targetToken, targetAmount, targetPrice, seller, msg.sender);
-    }
+    function cancelOrder(bytes32 targetHash, address targetToken, uint targetAmount, uint targetPrice, uint targetExpire, uint targetNonce) external {
+        bytes32 hash = sha256(abi.encodePacked(this, targetToken, targetAmount, targetPrice, targetExpire, targetNonce, msg.sender));
+        require( asks[hash] && targetHash == hash );
+        require( withdrawToken(msg.sender, targetToken, targetAmount) );
 
+        asks[hash] = false;
+
+        emit Cancel(hash, targetToken, targetAmount, targetPrice, msg.sender);
+    }
 
 }
