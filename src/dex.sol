@@ -80,9 +80,9 @@ contract TokenMarket  {
 
     mapping (bytes32 => bool) public asks;
 
-    event Ask(bytes32 hash, address indexed token, uint256 amount, uint256 price, uint256 total, uint256 expire, uint256 nonce, address indexed seller);
-    event Sold(bytes32 hash, bytes32 askHash, address indexed token, address indexed seller, address indexed buyer);
-    event Cancel(bytes32 hash, address indexed token, uint256 amount, uint256 price, address indexed seller);
+    event Ask(bytes32 orderHash, address indexed token, uint256 amount, uint256 price, uint256 total, uint256 expire, uint256 nonce, address indexed seller);
+    event Sold(bytes32 orderHash, address indexed token, uint256 amount, uint256 price, address indexed seller, address indexed buyer);
+    event Cancel(bytes32 orderHash, address indexed token, uint256 amount, uint256 price, address indexed seller);
 
 
     constructor(address _feeAccount) public {
@@ -187,9 +187,7 @@ contract TokenMarket  {
 
         delete asks[hash];
 
-        bytes32 soldHash = sha256(abi.encodePacked(hash, msg.sender));
-
-        emit Sold(soldHash, hash, targetToken, seller, msg.sender);
+        emit Sold( hash, targetToken, targetAmount, targetPrice, seller, msg.sender);
 
     }
 
