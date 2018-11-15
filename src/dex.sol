@@ -11,8 +11,12 @@ library SafeMath {
         return c;
     }
 
-    function div(uint256 a, uint256 b) internal pure returns (uint256) {
-        return a / b;
+    function div(uint256 a, uint256 b) internal pure returns (uint256 c) {
+        assert( a % b == 0 );
+        c = a / b;
+        assert( a == b * c );
+
+        return c;
     }
 
     function sub(uint256 a, uint256 b) internal pure returns (uint256) {
@@ -76,15 +80,15 @@ contract TokenMarket  {
 
     mapping (bytes32 => bool) public asks;
 
-    event Ask(bytes32 hash, address token, uint256 amount, uint256 price, uint256 total, uint256 expire, uint256 nonce, address indexed seller);
-    event Sold(bytes32 hash, address token, uint256 amount, uint256 price, address indexed seller, address indexed buyer);
-    event Cancel(bytes32 hash, address token, uint256 amount, uint256 price, address indexed seller);
+    event Ask(bytes32 hash, address indexed token, uint256 amount, uint256 price, uint256 total, uint256 expire, uint256 nonce, address indexed seller);
+    event Sold(bytes32 hash, bytes32 askHash, address indexed token, address indexed seller, address indexed buyer);
+    event Cancel(bytes32 hash, address indexed token, uint256 amount, uint256 price, address indexed seller);
 
 
     constructor(address _feeAccount) public {
         admin = msg.sender;
         feeAccount = _feeAccount;
-        makerFee = 0;   // 1 means 0.1% fee
+        makerFee = 0;   // 1 means 0.001% fee
         takerFee = 0;
     }
 
@@ -118,17 +122,13 @@ contract TokenMarket  {
     function withdrawFee(uint256 amount) public returns(bool){
         require (msg.sender == admin) ;
         require ( feeAccount != address(0) ) ;
-        feeAccount.call.value(amount)();
-
-        return true;
+        return feeAccount.call.value(amount)();
     }
 
     function withdrawTokenFee(address token, uint256 amount) public returns(bool){
         require (msg.sender == admin) ;
         require ( feeAccount != address(0) ) ;
-        withdrawToken(feeAccount, token, amount);
-
-        return true;
+        return withdrawToken(feeAccount, token, amount);
     }
 
     function depositToken(address user, address token, uint256 amount) private returns(bool){
@@ -136,6 +136,10 @@ contract TokenMarket  {
         require (Token(token).transferFrom(user, this, amount) );
 
         return true;
+    }
+
+    function calFee(uint256 amount, uint256 fee) private pure returns(uint256){
+        return amount.mul(fee).div(100000);
     }
 
     function withdrawToken(address user, address token, uint256 amount) private returns(bool){
@@ -147,8 +151,9 @@ contract TokenMarket  {
 
     function askToken(address token, uint256 amount, uint256 price, uint256 expire, uint256 nonce) external {
         bytes32 hash = sha256(abi.encodePacked(this, token, amount, price, expire, nonce, msg.sender));
-        uint256 total = price.mul( amount ).div(1 ether);
         require( !asks[hash] );
+
+        uint256 total = price.mul( amount ).div(1 ether);
         require( total >= (0.05 ether) && total < (10 ether) );
         require(depositToken(msg.sender, token, amount));
 
@@ -166,13 +171,13 @@ contract TokenMarket  {
         uint256 takerGet = targetAmount;
         uint256 fee = 0;
         if(makerFee != 0 ){
-            fee = makerGet.mul(makerFee).div(1000);
+            fee = calFee(makerGet, makerFee);
             makerGet = makerGet.sub(fee);
             incomes[address(0)].add(fee);
         }
 
         if(takerFee != 0 ){
-            fee = takerGet.mul(takerFee).div(1000);
+            fee = calFee(takerGet, takerFee);
             takerGet = takerGet.sub(fee);
             incomes[targetToken].add(fee);
         }
@@ -180,11 +185,11 @@ contract TokenMarket  {
         require( seller.call.value(makerGet)() );
         require( withdrawToken(msg.sender, targetToken, takerGet) );
 
-        asks[hash] = false;
+        delete asks[hash];
 
         bytes32 soldHash = sha256(abi.encodePacked(hash, msg.sender));
 
-        emit Sold(soldHash, targetToken, targetAmount, targetPrice, seller, msg.sender);
+        emit Sold(soldHash, hash, targetToken, seller, msg.sender);
 
     }
 
@@ -193,7 +198,7 @@ contract TokenMarket  {
         require( asks[hash] && targetHash == hash );
         require( withdrawToken(msg.sender, targetToken, targetAmount) );
 
-        asks[hash] = false;
+        delete asks[hash];
 
         emit Cancel(hash, targetToken, targetAmount, targetPrice, msg.sender);
     }
