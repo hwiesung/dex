@@ -21,7 +21,7 @@ library SafeMath {
     /**
     * @dev Integer division of two numbers, truncating the quotient.
     */
-    function div(uint256 a, uint256 b) internal pure returns (uint256) {
+    function div(uint256 a, uint256 b) internal pure returns (uint256 c) {
         assert( a % b == 0 );
         c = a / b;
         assert( a == b * c );

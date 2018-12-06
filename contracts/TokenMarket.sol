@@ -15,10 +15,10 @@ contract TokenMarket  {
     mapping (address => address) public tokenAdmin;
 
     mapping (address => uint) public incomes;
-    
-    constructor(address _feeAccount) public {
+
+    constructor() public {
         admin = msg.sender;
-        feeAccount = _feeAccount;
+        feeAccount = address(0);
         makerFee = 0;   // 1 means 0.001% fee
         takerFee = 0;
     }
@@ -80,7 +80,7 @@ contract TokenMarket  {
 
     function depositToken(address user, address token, uint256 amount) private returns(bool){
         require (token!=address(0));
-        require (Token(token).transferFrom(user, this, amount) );
+        require (ERC20(token).transferFrom(user, this, amount) );
 
         return true;
     }
