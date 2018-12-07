@@ -14,6 +14,10 @@ contract TokenMarket  {
 
     mapping (address => address) public tokenAdmin;
 
+    mapping (address => uint256) public balance;
+
+    mapping (address => uint256) public price;
+
     mapping (address => uint) public incomes;
 
     constructor() public {
@@ -28,20 +32,19 @@ contract TokenMarket  {
     }
 
     function changeAdmin(address _admin) public{
-        require(msg.sender == admin && _admin != admin);
+        require(msg.sender == admin && _admin != address(0) && _admin != admin);
         admin = _admin;
     }
 
     function changeFeeAccount(address _feeAccount) public{
-        require(msg.sender == admin && _feeAccount != feeAccount);
+        require(msg.sender == admin && _feeAccount != address(0) && _feeAccount != feeAccount);
         feeAccount = _feeAccount;
     }
 
-    function changeTokenAdmin(address _admin) public{
-        require(msg.sender == admin && _admin != admin);
-        admin = _admin;
+    function changeTokenAdmin(address _token, address _admin) public{
+        require(msg.sender == admin && _token != address(0) && _admin != address(0) && _admin != tokenAdmin[_token]);
+        tokenAdmin[_token] = _admin;
     }
-
 
     function changeMakerFee(uint256 _makerFee) public{
         require (msg.sender == admin) ;
@@ -53,6 +56,12 @@ contract TokenMarket  {
         require (msg.sender == admin) ;
         require (_takerFee != takerFee) ;
         takerFee = _takerFee;
+    }
+
+    function changeTokenPrice(address _token, uint256 _price) public{
+        require (msg.sender == tokenAdmin[_token]) ;
+        require (_price != 0 && _token != address(0) ) ;
+        price[_token] = _price;
     }
 
     function withdrawFee(uint256 amount) public returns(bool){
