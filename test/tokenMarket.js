@@ -1,6 +1,12 @@
-var TokenMarket = artifacts.require("TokenMarket");
+var TokenMarket = artifacts.require("TokenMarket.sol");
+var AFANCoin = artifacts.require("AFANCoin.sol");
 
 contract('TokenMarket', function(accounts) {
+
+    before(async function(){
+        let token = await AFANCoin.deployed();
+        console.log(token);
+    });
 
     it("admin change", function() {
         return TokenMarket.deployed().then(function(instance) {

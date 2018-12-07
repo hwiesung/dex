@@ -4,7 +4,9 @@
   "description": "ethereum dex",
   "main": "truffle-config.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "export NODE_ENV=develop && truffle test test/tokenMarket.js",
+    "build": "truffle complie",
+    "deploy": "export NODE_ENV=develop && truffle migrate"
   },
   "repository": {
     "type": "git",
@@ -15,5 +17,8 @@
   "bugs": {
     "url": "https://github.com/hwiesung/dex/issues"
   },
-  "homepage": "https://github.com/hwiesung/dex#readme"
+  "homepage": "https://github.com/hwiesung/dex#readme",
+  "dependencies": {
+    "web3": "^1.0.0-beta.34"
+  }
 }
