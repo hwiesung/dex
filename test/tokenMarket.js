@@ -1,5 +1,6 @@
 var TokenMarket = artifacts.require("TokenMarket.sol");
 var AFANCoin = artifacts.require("AFANCoin.sol");
+var web3 = require('web3');
 
 contract('TokenMarket', function(accounts) {
 
@@ -9,43 +10,40 @@ contract('TokenMarket', function(accounts) {
             this.token = await AFANCoin.deployed();
         }
 
+        this.market = await TokenMarket.deployed();
     });
 
-    it("admin change", function() {
-        return TokenMarket.deployed().then(function(instance) {
-            contractInstance = instance;
-            return contractInstance.changeAdmin(accounts[1], {from: accounts[0]});
-        }).then(function() {
-            return contractInstance.admin.call();
-        }).then(function(admin) {
-            console.log('admin:'+admin);
-            assert.equal(admin, accounts[1], "changeAdmin() failed");
-        });
+    it("admin change", async function() {
+        await this.market.changeAdmin(accounts[1], {from: accounts[0]});
+        let admin = await this.market.admin.call();
+        console.log('admin:'+admin);
+        return assert.equal(admin, accounts[1], "changeAdmin() failed");
     });
 
-    it("feeAccount change", function() {
-        return TokenMarket.deployed().then(function(instance) {
-            contractInstance = instance;
-            return contractInstance.changeFeeAccount(accounts[2], {from: accounts[1]});
-        }).then(function() {
-            return contractInstance.feeAccount.call();
-        }).then(function(feeAccount) {
-            console.log('feeAccount:'+feeAccount);
-            assert.equal(feeAccount, accounts[2], "changeFeeAccount() failed");
-        });
+    it("feeAccount change", async function() {
+        await this.market.changeFeeAccount(accounts[2], {from: accounts[1]});
+        let feeAccount = await this.market.feeAccount.call();
+        console.log('feeAccount:'+feeAccount);
+        return assert.equal(feeAccount, accounts[2], "changeFeeAccount() failed");
     });
 
-    it("tokenAdmin change", function() {
+    it("tokenAdmin change", async function() {
         console.log(this.token.address);
-        return TokenMarket.deployed().then((instance)=> {
-            contractInstance = instance;
-            return contractInstance.changeTokenAdmin(this.token.address, accounts[3], {from: accounts[1]});
-        }).then(()=> {
-            return contractInstance.tokenAdmin(this.token.address);
-        }).then((tokenAdmin)=> {
-            console.log('tokenAdmin:'+tokenAdmin);
-            assert.equal(tokenAdmin, accounts[3], "changeTokenAdmin() failed");
-        });
+        await this.market.changeTokenAdmin(this.token.address, accounts[3], {from: accounts[1]});
+        let tokenAdmin = await this.market.tokenAdmin(this.token.address);
+        console.log('tokenAdmin:'+tokenAdmin);
+        return assert.equal(tokenAdmin, accounts[3], "changeTokenAdmin() failed");
+
+    });
+
+    it("tokenPrice change", async function() {
+        console.log(this.token.address);
+
+        let target = web3.utils.toWei('0.002', 'ether');
+        await this.market.changeTokenPrice(this.token.address, target, {from: accounts[3]});
+        let result = await this.market.price(this.token.address);
+        console.log('token price:'+result.toNumber());
+        return assert.equal(result.toNumber(), target, "changeTokenPrice() failed");
     });
 
 

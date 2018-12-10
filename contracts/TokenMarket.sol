@@ -20,6 +20,9 @@ contract TokenMarket  {
 
     mapping (address => uint) public incomes;
 
+    event TokenPrice(address indexed token, uint256 price);
+
+
     constructor() public {
         admin = msg.sender;
         feeAccount = address(0);
@@ -59,9 +62,11 @@ contract TokenMarket  {
     }
 
     function changeTokenPrice(address _token, uint256 _price) public{
-        require (msg.sender == tokenAdmin[_token]) ;
-        require (_price != 0 && _token != address(0) ) ;
+        //require (msg.sender == tokenAdmin[_token]) ;
+        //require (_price != 0 && _token != address(0) ) ;
         price[_token] = _price;
+
+        //emit TokenPrice(_token, _price);
     }
 
     function withdrawFee(uint256 amount) public returns(bool){
@@ -76,7 +81,7 @@ contract TokenMarket  {
         return withdrawToken(feeAccount, token, amount);
     }
 
-    function calFee(uint256 amount, uint256 fee) private pure returns(uint256){
+    function calcFee(uint256 amount, uint256 fee) private pure returns(uint256){
         return amount.mul(fee).div(100000);
     }
 
