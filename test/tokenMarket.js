@@ -1,16 +1,22 @@
 var TokenMarket = artifacts.require("TokenMarket.sol");
 var AFANCoin = artifacts.require("AFANCoin.sol");
-var web3 = require('web3');
+
+const Web3 = require("web3");
+const web3 = new Web3(new Web3.providers.HttpProvider('HTTP://127.0.0.1:7545'));
 
 contract('TokenMarket', function(accounts) {
 
     before(async function(){
         this.env = process.env.NODE_ENV ? process.env.NODE_ENV: 'develop';
+        this.market = await TokenMarket.deployed();
         if(this.env == 'develop'){
             this.token = await AFANCoin.deployed();
+            await this.token.transfer(accounts[3], web3.utils.toWei('30000', 'ether'), {from: accounts[0]});
+            let balance = await this.token.balanceOf(accounts[3]);
+            console.log('token balance:'+balance);
         }
 
-        this.market = await TokenMarket.deployed();
+
     });
 
     it("admin change", async function() {
@@ -37,13 +43,51 @@ contract('TokenMarket', function(accounts) {
     });
 
     it("tokenPrice change", async function() {
-        console.log(this.token.address);
-
         let target = web3.utils.toWei('0.002', 'ether');
         await this.market.changeTokenPrice(this.token.address, target, {from: accounts[3]});
         let result = await this.market.price(this.token.address);
         console.log('token price:'+result.toNumber());
         return assert.equal(result.toNumber(), target, "changeTokenPrice() failed");
+    });
+
+    it("deposit Token", async function() {
+        let target = web3.utils.toWei('1000', 'ether');
+        await this.token.approve(this.token.address, target, {from:accounts[3]});
+        let allow = await this.token.allowance(accounts[3], this.token.address );
+
+        console.log('allowed:'+allow.toNumber());
+
+
+        await this.market.depositTokenByAdmin(this.token.address, target, {from:accounts[3]});
+
+        let result = await this.market.depositedToken(this.token.address);
+
+        console.log('deposited Token:'+result.toNumber());
+
+        return assert.equal(result.toNumber(), target, "depositedToken() failed");
+    });
+
+    it("exchange to Token", async function() {
+        let price = await this.market.price(this.token.address);
+        let amount = web3.utils.toWei('1', 'ether');
+        let total = price * 100;
+        let beforeBalance = await web3.eth.getBalance(this.market.address);
+        let beforeTokenBalance = await this.market.depositedToken(this.token.address);
+        console.log(accounts[0] + 'has ' +web3.utils.fromWei(beforeBalance, 'ether') + 'ether');
+        console.log('token price:'+price.toNumber()+' total:'+total);
+        console.log('beforeTokenBalance:'+beforeTokenBalance);
+        await this.market.exchangeToToken(this.token.address, amount, {from:accounts[0], value:total});
+
+        let afterBalance = await web3.eth.getBalance(this.market.address);
+        let afterTokenBalance = await this.market.depositedToken(this.token.address);
+        console.log('afterTokenBalance:'+afterTokenBalance);
+        let expectBalance =parseFloat(beforeBalance) + parseFloat(total);
+        let expectTokenBalance =parseFloat(beforeTokenBalance) - parseFloat(amount);
+
+        console.log('expect:'+expectBalance);
+        console.log('expectToken:'+expectTokenBalance);
+
+        return assert.equal(expectBalance , (parseFloat(afterBalance)), "unmatched balance failed");
     });
 
 
