@@ -93,8 +93,8 @@ contract('TokenMarket', function(accounts) {
     });
 
     it("token amount change", async function() {
-        let min = web3.utils.toWei('1', 'ether');
-        let max = web3.utils.toWei('10000', 'ether');
+        let min = web3.utils.toWei('0.001', 'ether');
+        let max = web3.utils.toWei('10', 'ether');
         await this.market.changeTokenAmount(this.token.address, min, max, {from: accounts[3]});
         let amountMin = await this.market.amountMin(this.token.address);
         let amountMax = await this.market.amountMax(this.token.address);
@@ -181,8 +181,8 @@ contract('TokenMarket', function(accounts) {
 
     it("exchange to Token", async function() {
         let price = await this.market.price(this.token.address);
-        let amount = web3.utils.toWei('50', 'ether');
-        let total = price * 50;
+        let amount = web3.utils.toWei('200', 'ether');
+        let total = price * 200;
 
         let beforeTokenBalance = await this.market.depositedToken(this.token.address);
         console.log('token price:'+price.toNumber()+' total:'+total);
@@ -207,9 +207,9 @@ contract('TokenMarket', function(accounts) {
     });
 
     it("exchange to Ether", async function() {
-        let amount = web3.utils.toWei('50', 'ether');
+        let amount = web3.utils.toWei('200', 'ether');
         let price = await this.market.price(this.token.address);
-        let total = price * 50;
+        let total = price * 200;
         console.log('token price:'+price.toNumber()+' total:'+total);
         let beforeTokenBalance = await this.market.depositedToken(this.token.address);
 

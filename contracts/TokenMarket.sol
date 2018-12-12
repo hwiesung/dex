@@ -160,12 +160,22 @@ contract TokenMarket  {
         depositedEther[_token] = depositedEther[_token].add(msg.value);
     }
 
+    function checkAmount(address _token, uint256 _total) private view returns(bool){
+        uint256 min = amountMin[_token] == 0 ? 0.01 ether  : amountMin[_token];
+        uint256 max = amountMax[_token] == 0 ? 100 ether  : amountMax[_token];
+        require(_total>= min && _total <= max);
+
+        return true;
+    }
+
 
     function exchangeToEther(address _token, uint256 _amount) external {
         require(_token!=address(0x0));
         require(price[_token] > 0);
 
         uint256 total = _amount.mul(price[_token]).div(1 ether);
+
+        require( checkAmount(_token, total) );
 
         require( address(this).balance >= total && depositedEther[_token] >= total);
         uint256 charge = 0;
@@ -195,7 +205,11 @@ contract TokenMarket  {
         require(price[_token] > 0);
         require( depositedToken[_token] >= _amount );
         uint256 total = _amount.mul(price[_token]).div(1 ether);
+
         require( total == msg.value );
+        require( checkAmount(_token, total) );
+
+
         uint256 charge = 0;
         uint gotToken = _amount;
 
