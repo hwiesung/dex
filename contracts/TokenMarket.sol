@@ -157,15 +157,25 @@ contract TokenMarket  {
 
         require( address(this).balance >= total && depositedEther[_token] >= total);
         uint256 charge = 0;
+        uint gotEther = total;
         if(fee != 0 ){
             charge = calcFee(total, fee);
-            total = total.sub(charge);
+            gotEther = total.sub(charge);
         }
 
         require(depositToken(msg.sender, _token, _amount));
-        require(msg.sender.call.value(total)());
 
-        emit WithdrawEther(_token, msg.sender, _amount, total, charge);
+        require(msg.sender.call.value(gotEther)());
+
+        depositedToken[_token] = depositedToken[_token].add(_amount);
+        depositedEther[_token] = depositedEther[_token].sub(total);
+
+        if(charge > 0 ){
+            income[address(0x0)] = income[address(0x0)].add(charge);
+        }
+
+
+        emit WithdrawEther(_token, msg.sender, _amount, gotEther, charge);
     }
 
     function exchangeToToken(address _token, uint256 _amount) payable external {
