@@ -92,6 +92,40 @@ contract('TokenMarket', function(accounts) {
         }
     });
 
+    it("token amount change", async function() {
+        let min = web3.utils.toWei('1', 'ether');
+        let max = web3.utils.toWei('10000', 'ether');
+        await this.market.changeTokenAmount(this.token.address, min, max, {from: accounts[3]});
+        let amountMin = await this.market.amountMin(this.token.address);
+        let amountMax = await this.market.amountMax(this.token.address);
+
+        await assert.equal(amountMin.toNumber(), min, "changeTokenAmount() failed");
+        return await assert.equal(amountMax.toNumber(), max, "changeTokenAmount() failed");
+    });
+
+    it("token amount change reject", async function() {
+        let min = web3.utils.toWei('1', 'ether');
+        let max = web3.utils.toWei('10000', 'ether');
+
+        try{
+            await this.market.changeTokenAmount(this.token.address, min, max, {from: accounts[9]});
+            assert.fail("The transaction should have thrown an error");
+        }
+        catch(err){
+            assert.include(err.message, "revert", "The error message should contain 'revert'");
+        }
+
+        try{
+            await this.market.changeTokenAmount(this.token.address, max, min, {from: accounts[3]});
+            assert.fail("The transaction should have thrown an error");
+        }
+        catch(err){
+            assert.include(err.message, "revert", "The error message should contain 'revert'");
+        }
+
+
+    });
+
     it("deposit Token", async function() {
         let target = web3.utils.toWei('5000', 'ether');
         await this.token.approve(this.token.address, target, {from:accounts[3]});

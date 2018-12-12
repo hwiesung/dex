@@ -55,6 +55,10 @@ contract TokenMarket  {
 
     mapping (address => uint256) public price;
 
+    mapping (address => uint256) public amountMin;
+
+    mapping (address => uint256) public amountMax;
+
     mapping (address => uint256) public income;
 
     event TokenPrice(address indexed token, uint256 price);
@@ -95,10 +99,18 @@ contract TokenMarket  {
 
     function changeTokenPrice(address _token, uint256 _price) public{
         require (msg.sender == tokenAdmin[_token]) ;
-        require (_price != 0 && _token != address(0) ) ;
+        require (_price > 0 && _token != address(0) ) ;
         price[_token] = _price;
 
         emit TokenPrice(_token, _price);
+    }
+
+    function changeTokenAmount(address _token, uint256 _min, uint256 _max) public{
+        require (msg.sender == tokenAdmin[_token]) ;
+        require (_min > 0 && _min < _max && _token != address(0) ) ;
+
+        amountMin[_token] = _min;
+        amountMax[_token] = _max;
     }
 
     function withdrawFee(uint256 _amount) public returns(bool){
