@@ -24,6 +24,17 @@ contract('TokenMarket', function(accounts) {
         let admin = await this.market.admin.call();
         console.log('admin:'+admin);
         return assert.equal(admin, accounts[1], "changeAdmin() failed");
+
+    });
+
+    it("admin change reject ", async function() {
+        try{
+            await this.market.changeAdmin(accounts[0], {from: accounts[9]});
+            assert.fail("The transaction should have thrown an error");
+        }
+        catch(err){
+            assert.include(err.message, "revert", "The error message should contain 'revert'");
+        }
     });
 
     it("feeAccount change", async function() {
@@ -33,13 +44,32 @@ contract('TokenMarket', function(accounts) {
         return assert.equal(feeAccount, accounts[2], "changeFeeAccount() failed");
     });
 
+    it("feeAccount change reject ", async function() {
+        try{
+            await this.market.changeFeeAccount(accounts[2], {from: accounts[9]});
+            assert.fail("The transaction should have thrown an error");
+        }
+        catch(err){
+            assert.include(err.message, "revert", "The error message should contain 'revert'");
+        }
+    });
+
     it("tokenAdmin change", async function() {
-        console.log(this.token.address);
         await this.market.changeTokenAdmin(this.token.address, accounts[3], {from: accounts[1]});
         let tokenAdmin = await this.market.tokenAdmin(this.token.address);
         console.log('tokenAdmin:'+tokenAdmin);
         return assert.equal(tokenAdmin, accounts[3], "changeTokenAdmin() failed");
 
+    });
+
+    it("tokenAdmin change reject ", async function() {
+        try{
+            await this.market.changeTokenAdmin(this.token.address, accounts[3], {from: accounts[9]});
+            assert.fail("The transaction should have thrown an error");
+        }
+        catch(err){
+            assert.include(err.message, "revert", "The error message should contain 'revert'");
+        }
     });
 
     it("tokenPrice change", async function() {
@@ -48,6 +78,18 @@ contract('TokenMarket', function(accounts) {
         let result = await this.market.price(this.token.address);
         console.log('token price:'+result.toNumber());
         return assert.equal(result.toNumber(), target, "changeTokenPrice() failed");
+    });
+
+    it("tokenPrice change reject ", async function() {
+        let target = web3.utils.toWei('0.002', 'ether');
+
+        try{
+            await this.market.changeTokenPrice(this.token.address, target, {from: accounts[9]});
+            assert.fail("The transaction should have thrown an error");
+        }
+        catch(err){
+            assert.include(err.message, "revert", "The error message should contain 'revert'");
+        }
     });
 
     it("deposit Token", async function() {
@@ -67,6 +109,18 @@ contract('TokenMarket', function(accounts) {
         return assert.equal(result.toNumber(), target, "depositTokenByAdmin() failed");
     });
 
+    it("deposit Token reject", async function() {
+        let target = web3.utils.toWei('5000', 'ether');
+
+        try{
+            await this.market.depositTokenByAdmin(this.token.address, target, {from:accounts[9]});
+            assert.fail("The transaction should have thrown an error");
+        }
+        catch(err){
+            assert.include(err.message, "revert", "The error message should contain 'revert'");
+        }
+    });
+
     it("deposit Ether", async function() {
         let target = web3.utils.toWei('1', 'ether');
 
@@ -77,6 +131,18 @@ contract('TokenMarket', function(accounts) {
         console.log('deposited Ether:'+result.toNumber());
 
         return assert.equal(result.toNumber(), target, "depositEtherByAdmin() failed");
+    });
+
+    it("deposit Ether reject", async function() {
+        let target = web3.utils.toWei('1', 'ether');
+        try{
+            await this.market.depositEtherByAdmin(this.token.address, {from:accounts[9], value:target});
+
+            assert.fail("The transaction should have thrown an error");
+        }
+        catch(err){
+            assert.include(err.message, "revert", "The error message should contain 'revert'");
+        }
     });
 
     it("exchange to Token", async function() {
