@@ -51,7 +51,7 @@ contract('TokenMarket', function(accounts) {
     });
 
     it("deposit Token", async function() {
-        let target = web3.utils.toWei('1000', 'ether');
+        let target = web3.utils.toWei('5000', 'ether');
         await this.token.approve(this.token.address, target, {from:accounts[3]});
         let allow = await this.token.allowance(accounts[3], this.token.address );
 
@@ -81,25 +81,29 @@ contract('TokenMarket', function(accounts) {
 
     it("exchange to Token", async function() {
         let price = await this.market.price(this.token.address);
-        let amount = web3.utils.toWei('1', 'ether');
-        let total = price * 100;
-        let beforeBalance = await web3.eth.getBalance(this.market.address);
-        let beforeTokenBalance = await this.market.depositedToken(this.token.address);
-        console.log(accounts[0] + 'has ' +web3.utils.fromWei(beforeBalance, 'ether') + 'ether');
-        console.log('token price:'+price.toNumber()+' total:'+total);
-        console.log('beforeTokenBalance:'+beforeTokenBalance);
-        await this.market.exchangeToToken(this.token.address, amount, {from:accounts[0], value:total});
+        let amount = web3.utils.toWei('50', 'ether');
+        let total = price * 50;
 
-        let afterBalance = await web3.eth.getBalance(this.market.address);
+        let beforeTokenBalance = await this.market.depositedToken(this.token.address);
+        console.log('token price:'+price.toNumber()+' total:'+total);
+
+        console.log('beforeTokenBalance:'+beforeTokenBalance);
+        await this.market.exchangeToToken(this.token.address, amount, {from:accounts[4], value:total});
+
+
         let afterTokenBalance = await this.market.depositedToken(this.token.address);
         console.log('afterTokenBalance:'+afterTokenBalance);
-        let expectBalance =parseFloat(beforeBalance) + parseFloat(total);
-        let expectTokenBalance =parseFloat(beforeTokenBalance) - parseFloat(amount);
 
-        console.log('expect:'+expectBalance);
+        let expectTokenBalance = parseFloat(beforeTokenBalance) - parseFloat(amount);
         console.log('expectToken:'+expectTokenBalance);
 
-        return assert.equal(expectBalance , (parseFloat(afterBalance)), "unmatched balance failed");
+
+        let balanceToken = await this.token.balanceOf(accounts[4]);
+        console.log(accounts[4]+' has '+balanceToken.toNumber());
+
+
+
+        return assert.equal(expectTokenBalance , (parseFloat(afterTokenBalance)), "unmatched balance failed");
     });
 
 

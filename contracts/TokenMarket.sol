@@ -55,6 +55,8 @@ contract TokenMarket  {
 
     mapping (address => uint256) public price;
 
+    mapping (address => uint256) public income;
+
     event TokenPrice(address indexed token, uint256 price);
     event WithdrawEther(address indexed token, address user, uint256 amount, uint256 value, uint256 fee);
     event WithdrawToken(address indexed token, address user, uint256 amount, uint256 value, uint256 fee);
@@ -169,18 +171,28 @@ contract TokenMarket  {
     function exchangeToToken(address _token, uint256 _amount) payable external {
         require(_token!=address(0x0));
         require(price[_token] > 0);
-        //require( balance[_token] >= _amount );
+        require( depositedToken[_token] >= _amount );
         uint256 total = _amount.mul(price[_token]).div(1 ether);
-        //require( total == msg.value );
+        require( total == msg.value );
         uint256 charge = 0;
+        uint gotToken = _amount;
+
         if(fee != 0 ){
             charge = calcFee(_amount, fee);
-            _amount.sub(charge);
+            gotToken = _amount.sub(charge);
         }
 
-        //require(withdrawToken(msg.sender, _token, _amount));
+        require(withdrawToken(msg.sender, _token, gotToken));
 
-        emit WithdrawToken(_token, msg.sender, _amount, total, charge);
+        depositedToken[_token] = depositedToken[_token].sub(_amount);
+        depositedEther[_token] = depositedEther[_token].add(total);
+
+        if(charge > 0 ){
+            income[_token] = income[_token].add(charge);
+        }
+
+
+        emit WithdrawToken(_token, msg.sender, gotToken, total, charge);
     }
 
 
