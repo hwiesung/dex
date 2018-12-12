@@ -58,6 +58,7 @@ contract TokenMarket  {
     event TokenPrice(address indexed token, uint256 price);
     event WithdrawEther(address indexed token, address user, uint256 amount, uint256 value, uint256 fee);
     event WithdrawToken(address indexed token, address user, uint256 amount, uint256 value, uint256 fee);
+    event DepositToken(address indexed token, uint256 amount);
 
     constructor() public {
         admin = msg.sender;
@@ -135,6 +136,8 @@ contract TokenMarket  {
         require( depositToken(msg.sender, _token, _amount) );
 
         depositedToken[_token] = depositedToken[_token].add(_amount);
+
+        emit DepositToken(_token, _amount);
     }
 
     function depositEtherByAdmin(address _token) payable external {

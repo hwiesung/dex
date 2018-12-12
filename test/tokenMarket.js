@@ -64,7 +64,19 @@ contract('TokenMarket', function(accounts) {
 
         console.log('deposited Token:'+result.toNumber());
 
-        return assert.equal(result.toNumber(), target, "depositedToken() failed");
+        return assert.equal(result.toNumber(), target, "depositTokenByAdmin() failed");
+    });
+
+    it("deposit Ether", async function() {
+        let target = web3.utils.toWei('5', 'ether');
+
+        await this.market.depositEtherByAdmin(this.token.address, {from:accounts[3], value:target});
+
+        let result = await this.market.depositedEther(this.token.address);
+
+        console.log('deposited Ether:'+result.toNumber());
+
+        return assert.equal(result.toNumber(), target, "depositEtherByAdmin() failed");
     });
 
     it("exchange to Token", async function() {
